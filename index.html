@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HuB — Repo Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #EDEFF2; --panel: #FFFFFF; --line: #C7CDD6; --line-strong: #9AA4B2;
+    --ink: #1B2430; --ink-dim: #5B6472;
+    --blue: #2C5F8A; --teal: #2F8F80; --amber: #C08A2E; --rose: #B23A48;
+    --radius: 3px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151A; --panel: #1A1E25; --line: #2A2F38; --line-strong: #3B424E;
+      --ink: #E6E9ED; --ink-dim: #8A93A1;
+      --blue: #6FB4DE; --teal: #4FD1C5; --amber: #E8A33D; --rose: #E06B76;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151A; --panel: #1A1E25; --line: #2A2F38; --line-strong: #3B424E;
+    --ink: #E6E9ED; --ink-dim: #8A93A1;
+    --blue: #6FB4DE; --teal: #4FD1C5; --amber: #E8A33D; --rose: #E06B76;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif; -webkit-font-smoothing: antialiased; }
+  body {
+    background-image: linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 28px 28px; background-attachment: fixed;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 28px 20px 60px; }
+  header.top { display: flex; align-items: baseline; justify-content: space-between;
+    flex-wrap: wrap; gap: 10px; border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px; margin-bottom: 22px; }
+  header.top h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; font-weight: 700; }
+  header.top .sub { font-family: 'IBM Plex Mono', monospace; color: var(--ink-dim); font-size: 0.8rem; }
+  .btns { display: flex; gap: 8px; }
+  .btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem;
+    background: none; border: 1px solid var(--line-strong); color: var(--ink-dim);
+    padding: 5px 10px; border-radius: var(--radius); cursor: pointer; }
+  .btn:hover { color: var(--ink); border-color: var(--ink-dim); }
+  .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  nav.tabs { display: flex; gap: 2px; margin-bottom: 20px; flex-wrap: wrap; }
+  nav.tabs button { font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem;
+    background: var(--panel); color: var(--ink-dim); border: 1px solid var(--line-strong);
+    border-bottom: none; padding: 9px 16px; cursor: pointer; position: relative; top: 1px; }
+  nav.tabs button.active { color: var(--ink); border-bottom: 1px solid var(--panel); font-weight: 600; }
+  nav.tabs button .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: 6px; background: var(--line-strong); }
+  nav.tabs button .dot.ok { background: var(--teal); }
+  nav.tabs button .dot.warn { background: var(--amber); }
+  nav.tabs button .dot.err { background: var(--rose); }
+  nav.tabs button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .panel-line { border-top: 1px solid var(--line-strong); margin-bottom: 26px; }
+  .grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-bottom: 22px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line-strong);
+    border-radius: var(--radius); padding: 18px 20px; }
+  .card h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-dim); margin: 0 0 16px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+  .trl-row { margin-bottom: 14px; }
+  .trl-row:last-child { margin-bottom: 0; }
+  .trl-label { display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.82rem; margin-bottom: 5px; }
+  .trl-label .val { font-family: 'IBM Plex Mono', monospace; color: var(--ink-dim); font-size: 0.78rem; }
+  .trl-track { position: relative; height: 16px; background: var(--bg);
+    border: 1px solid var(--line-strong); border-radius: var(--radius); }
+  .trl-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: var(--radius) 0 0 var(--radius); }
+  .trl-ticks { position: absolute; inset: 0; display: flex; }
+  .trl-ticks span { flex: 1; border-right: 1px solid var(--panel);
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.55rem; color: var(--panel);
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 2px;
+    mix-blend-mode: difference; }
+  .trl-ticks span:last-child { border-right: none; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .stat { border: 1px solid var(--line-strong); border-radius: var(--radius);
+    padding: 12px 12px 10px; position: relative; }
+  .stat::before, .stat::after { content: ''; position: absolute; width: 6px; height: 6px;
+    border-color: var(--line-strong); border-style: solid; }
+  .stat::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+  .stat::after { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+  .stat .num { font-family: 'IBM Plex Mono', monospace; font-size: 1.5rem; font-weight: 600; line-height: 1; }
+  .stat .num.warn { color: var(--amber); }
+  .stat .num.crit { color: var(--rose); }
+  .stat .lbl { font-size: 0.68rem; color: var(--ink-dim); margin-top: 6px; font-family: 'IBM Plex Mono', monospace; }
+  .trend-card { margin-bottom: 22px; }
+  .trend-svg { width: 100%; height: auto; display: block; }
+  .legend { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+  .legend .item { display: flex; align-items: center; gap: 6px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--ink-dim); }
+  .legend .swatch { width: 10px; height: 10px; border-radius: 2px; }
+  .log { font-family: 'IBM Plex Mono', monospace; font-size: 0.76rem; color: var(--ink-dim);
+    border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 12px 16px;
+    max-height: 160px; overflow-y: auto; background: var(--panel); }
+  .log .entry { padding: 3px 0; border-bottom: 1px dashed var(--line); display: flex; gap: 10px; }
+  .log .entry:last-child { border-bottom: none; }
+  .log .ts { color: var(--ink); flex-shrink: 0; }
+  .state-msg { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--ink-dim);
+    padding: 24px 4px; line-height: 1.7; }
+  .state-msg .file { color: var(--ink); }
+  .state-msg code { background: var(--bg); border: 1px solid var(--line); border-radius: 2px;
+    padding: 1px 5px; }
+  footer.note { margin-top: 28px; font-size: 0.72rem; color: var(--ink-dim);
+    font-family: 'IBM Plex Mono', monospace; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>HuB — Repo Status</h1>
+      <div class="sub" id="subline">loading config…</div>
+    </div>
+    <div class="btns">
+      <button class="btn" id="refreshBtn" type="button">refresh</button>
+      <button class="btn" id="themeToggle" type="button">toggle theme</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <div class="panel-line"></div>
+  <div id="body"></div>
+
+  <footer class="note" id="footNote"></footer>
+</div>
+
+<script>
+const CONFIG_URL = './config.json';
+let CONFIG = null;
+let REPO_STATE = {}; // name -> { status: 'loading'|'ok'|'empty'|'error', entries: [...] }
+let current = null;
+
+function rawUrl(r) {
+  return `https://raw.githubusercontent.com/${r.owner}/${r.repo}/${r.branch}/status_log.jsonl`;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function parseJSONL(text) {
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    try { return JSON.parse(l); } catch (e) { return null; }
+  }).filter(Boolean).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
+async function loadRepo(r) {
+  REPO_STATE[r.name] = { status: 'loading', entries: [] };
+  try {
+    const res = await fetch(rawUrl(r), { cache: 'no-store' });
+    if (!res.ok) {
+      REPO_STATE[r.name] = { status: res.status === 404 ? 'empty' : 'error', entries: [], detail: `HTTP ${res.status}` };
+      return;
+    }
+    const text = await res.text();
+    const entries = parseJSONL(text);
+    REPO_STATE[r.name] = entries.length
+      ? { status: 'ok', entries }
+      : { status: 'empty', entries: [] };
+  } catch (e) {
+    REPO_STATE[r.name] = { status: 'error', entries: [], detail: String(e) };
+  }
+}
+
+async function loadAll() {
+  document.getElementById('subline').textContent = 'loading config…';
+  let cfgRes;
+  try {
+    cfgRes = await fetch(CONFIG_URL, { cache: 'no-store' });
+  } catch (e) {
+    showConfigError(`config.json could not be fetched (${String(e)}).`);
+    return;
+  }
+  if (!cfgRes.ok) { showConfigError(`config.json returned HTTP ${cfgRes.status}.`); return; }
+  try {
+    CONFIG = await cfgRes.json();
+  } catch (e) {
+    showConfigError('config.json is not valid JSON.');
+    return;
+  }
+  if (!CONFIG || !Array.isArray(CONFIG.repos) || !CONFIG.repos.length) {
+    showConfigError('config.json has no "repos" array.');
+    return;
+  }
+  document.getElementById('subline').textContent =
+    `${CONFIG.repos.length} repo(s) tracked — raw.githubusercontent.com may cache up to ~5 min`;
+
+  buildTabs();
+  document.getElementById('subline').textContent = 'fetching status logs…';
+  await Promise.all(CONFIG.repos.map(loadRepo));
+  if (!current) current = CONFIG.repos[0].name;
+  updateTabDots();
+  renderCurrent();
+  document.getElementById('subline').textContent =
+    `${CONFIG.repos.length} repo(s) tracked — last fetched ${new Date().toLocaleTimeString()}`;
+}
+
+function showConfigError(detail) {
+  document.getElementById('subline').textContent = 'config error';
+  document.getElementById('tabs').innerHTML = '';
+  document.getElementById('footNote').textContent = '';
+  document.getElementById('body').innerHTML = `<div class="card"><div class="state-msg">
+    Couldn't load <code>config.json</code>: ${esc(detail)}<br><br>
+    Confirm <code>config.json</code> is at the repo root and is valid JSON.
+  </div></div>`;
+}
+
+function buildTabs() {
+  const tabsEl = document.getElementById('tabs');
+  tabsEl.innerHTML = '';
+  CONFIG.repos.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.setAttribute('role', 'tab');
+    b.dataset.name = r.name;
+    b.innerHTML = `<span class="dot"></span>${esc(r.name)} <span style="color:var(--ink-dim); font-size:0.7em;">(${esc(r.branch)})</span>`;
+    if (i === 0) { b.classList.add('active'); current = r.name; }
+    b.addEventListener('click', () => {
+      current = r.name;
+      [...tabsEl.children].forEach(c => c.classList.toggle('active', c === b));
+      renderCurrent();
+    });
+    tabsEl.appendChild(b);
+  });
+}
+
+function updateTabDots() {
+  [...document.querySelectorAll('#tabs button')].forEach(b => {
+    const st = REPO_STATE[b.dataset.name]?.status;
+    const dot = b.querySelector('.dot');
+    dot.className = 'dot' + (st === 'ok' ? ' ok' : st === 'empty' ? ' warn' : st === 'error' ? ' err' : '');
+  });
+}
+
+function trlColor(v) {
+  if (v >= 6) return 'var(--teal)';
+  if (v >= 4) return 'var(--blue)';
+  if (v >= 2) return 'var(--amber)';
+  return 'var(--rose)';
+}
+
+function renderEmptyState(name, state) {
+  const body = document.getElementById('body');
+  const repo = CONFIG.repos.find(r => r.name === name) || {};
+  if (state.status === 'loading') {
+    body.innerHTML = `<div class="card"><div class="state-msg">
+      Fetching <code>status_log.jsonl</code> for <span class="file">${esc(name)}</span>…
+    </div></div>`;
+  } else if (state.status === 'empty') {
+    body.innerHTML = `<div class="card"><div class="state-msg">
+      No <code>status_log.jsonl</code> found yet for <span class="file">${esc(name)}</span> on branch
+      <code>${esc(repo.branch)}</code>.<br><br>
+      This repo hasn't wired up the sweep extension yet — see <code>PM_STATUS_FRAMEWORK.md</code>
+      in this repo for the record schema. Once its sweep appends its first snapshot line,
+      it'll appear here automatically.
+    </div></div>`;
+  } else {
+    body.innerHTML = `<div class="card"><div class="state-msg">
+      Couldn't fetch status data for <span class="file">${esc(name)}</span> (${esc(state.detail || 'unknown error')}).<br><br>
+      Check that the repo is public, that <code>${esc(repo.owner)}/${esc(repo.repo)}</code> is correct,
+      the branch name in <code>config.json</code> is correct, and that
+      <code>status_log.jsonl</code> exists at the repo root on that branch.
+    </div></div>`;
+  }
+}
+
+function currentRepo() {
+  return CONFIG.repos.find(r => r.name === current);
+}
+
+function renderCurrent() {
+  const state = REPO_STATE[current];
+  const repo = currentRepo();
+  document.getElementById('footNote').textContent =
+    `Source: https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${repo.branch}/status_log.jsonl`;
+
+  if (!state || state.status !== 'ok') {
+    renderEmptyState(current, state || { status: 'loading' });
+    return;
+  }
+
+  const entries = state.entries;
+  const latest = entries[entries.length - 1];
+  const components = latest.trl || {};
+  const sweeps = entries.map(e => {
+    const trlVals = Object.values(e.trl || {});
+    const avgTrl = trlVals.length ? trlVals.reduce((a,b)=>a+b,0) / trlVals.length : 0;
+    const f = e.flow || {};
+    return {
+      ts: (e.timestamp || '').slice(5, 10),
+      wip: f.wip ?? 0,
+      blocked: f.blocked ?? 0,
+      open_total: f.open_total ?? 0,
+      blocked_ratio: f.blocked_ratio ?? 0,
+      cycle_h: f.cycle_time_median_hours ?? 0,
+      stale: f.stale_reversions_since_last ?? 0,
+      _avgTrl: avgTrl
+    };
+  });
+  const log = entries.slice().reverse().filter(e => e.notes).slice(0, 12)
+    .map(e => ({ ts: e.timestamp, note: e.notes }));
+
+  document.getElementById('body').innerHTML = `
+    <div class="grid">
+      <div class="card"><h2>TRL by component</h2><div id="trlRows"></div></div>
+      <div class="card"><h2>Flow — latest sweep</h2><div class="stat-grid" id="statGrid"></div></div>
+    </div>
+    <div class="card trend-card">
+      <h2>TRL trend (component avg) &amp; blocked ratio</h2>
+      <svg class="trend-svg" id="trendSvg" viewBox="0 0 960 220" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="legend">
+        <div class="item"><span class="swatch" style="background:var(--blue)"></span>TRL avg (0–9 axis)</div>
+        <div class="item"><span class="swatch" style="background:var(--amber)"></span>blocked ratio (0–1 axis)</div>
+      </div>
+    </div>
+    <div class="card"><h2>Snapshot log</h2><div class="log" id="logList"></div></div>
+  `;
+
+  renderTRL(components);
+  renderStats(sweeps[sweeps.length - 1]);
+  renderLog(log);
+  renderTrend(sweeps);
+}
+
+function renderTRL(components) {
+  const el = document.getElementById('trlRows');
+  const names = Object.keys(components);
+  if (!names.length) { el.innerHTML = '<div class="state-msg">No TRL entries in the latest snapshot.</div>'; return; }
+  el.innerHTML = names.map(name => {
+    const val = Number(components[name]);
+    const pct = Math.max(0, Math.min(100, (val / 9) * 100));
+    return `
+      <div class="trl-row">
+        <div class="trl-label"><span class="name">${esc(name)}</span><span class="val">TRL ${esc(val)}/9</span></div>
+        <div class="trl-track">
+          <div class="trl-fill" style="width:${pct}%; background:${trlColor(val)}"></div>
+          <div class="trl-ticks">${[1,2,3,4,5,6,7,8,9].map(n => `<span>${n===9?9:''}</span>`).join('')}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderStats(latest) {
+  const el = document.getElementById('statGrid');
+  const items = [
+    { lbl: 'WIP', val: latest.wip, cls: '' },
+    { lbl: 'Blocked ratio', val: (latest.blocked_ratio*100).toFixed(0) + '%',
+      cls: latest.blocked_ratio > 0.4 ? 'crit' : (latest.blocked_ratio > 0.25 ? 'warn' : '') },
+    { lbl: 'Cycle time (median, hrs)', val: latest.cycle_h, cls: '' },
+    { lbl: 'Stale reversions', val: latest.stale, cls: latest.stale > 0 ? 'warn' : '' }
+  ];
+  el.innerHTML = items.map(i => `
+    <div class="stat"><div class="num ${i.cls}">${i.val}</div><div class="lbl">${i.lbl}</div></div>`).join('');
+}
+
+function renderLog(entries) {
+  const el = document.getElementById('logList');
+  el.innerHTML = entries.length
+    ? entries.map(e => `<div class="entry"><span class="ts">${esc(e.ts)}</span><span>${esc(e.note)}</span></div>`).join('')
+    : '<div class="state-msg">No notes logged yet.</div>';
+}
+
+function renderTrend(sweeps) {
+  const svg = document.getElementById('trendSvg');
+  const W = 960, H = 220, padL = 40, padR = 40, padT = 16, padB = 28;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = sweeps.length;
+  const x = i => n <= 1 ? padL + innerW/2 : padL + (innerW * i) / (n - 1);
+  const yTrl = v => padT + innerH - (v / 9) * innerH;
+  const yRatio = v => padT + innerH - v * innerH;
+
+  let gridLines = '';
+  for (let g = 0; g <= 4; g++) {
+    const yy = padT + (innerH * g) / 4;
+    gridLines += `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--line)" stroke-width="1" />`;
+  }
+  const trlPath = sweeps.map((s, i) => `${i===0?'M':'L'} ${x(i).toFixed(1)} ${yTrl(s._avgTrl).toFixed(1)}`).join(' ');
+  const ratioPath = sweeps.map((s, i) => `${i===0?'M':'L'} ${x(i).toFixed(1)} ${yRatio(s.blocked_ratio).toFixed(1)}`).join(' ');
+  const dots = (vals, yfn, color) => vals.map((v,i) =>
+    `<circle cx="${x(i).toFixed(1)}" cy="${yfn(v).toFixed(1)}" r="3" fill="${color}" />`).join('');
+  const labels = sweeps.map((s,i) => `<text x="${x(i).toFixed(1)}" y="${H-8}" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-dim)" text-anchor="middle">${esc(s.ts)}</text>`).join('');
+
+  svg.innerHTML = `
+    ${gridLines}
+    <path d="${trlPath}" fill="none" stroke="var(--blue)" stroke-width="2" />
+    ${dots(sweeps.map(s=>s._avgTrl), yTrl, 'var(--blue)')}
+    <path d="${ratioPath}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 3" />
+    ${dots(sweeps.map(s=>s.blocked_ratio), yRatio, 'var(--amber)')}
+    ${labels}
+  `;
+}
+
+// theme toggle
+const root = document.documentElement;
+try { const saved = localStorage.getItem('hub-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  try { localStorage.setItem('hub-theme', next); } catch (e) {}
+});
+document.getElementById('refreshBtn').addEventListener('click', loadAll);
+
+loadAll();
+</script>
+</body>
+</html>

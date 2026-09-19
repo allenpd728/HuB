@@ -1,0 +1,13 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Scratch
+.agent_tmp/
+
+# Never commit tokens or credentials into this repo.
+.env
+*.pem
+*.key
