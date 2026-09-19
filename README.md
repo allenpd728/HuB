@@ -35,14 +35,10 @@ client-side fetch, so a private repo cannot be added.
    colour: teal = data found, amber = no `status_log.jsonl` yet (expected today),
    rose = fetch error (repo private, branch typo, network).
 
-## Current expected state
+## Current state
 
-The sweep extension is now installed and pushed to all four source repos'
-`dev` branches (see `workflows-handoff/README.md`). Each repo also carries a
-first `status_log.jsonl` snapshot, so the dashboard should render **teal (ok)**
-for all four tabs.
-
-The one remaining manual step is installing the scheduled workflow file in each
-source repo — it could not be pushed by the agent's token (no `workflow`
-scope). Until then the log updates only when someone runs the sweep by hand.
-See `workflows-handoff/README.md`.
+All four source repos have the sweep extension (`tooling/hub_sweep.py`, or
+`tools/hub_sweep.py` in muse) and the scheduled `hub_sweep` workflow installed
+on their `dev` and default branches. All four dashboard tabs render **teal
+(ok)** with real data. The workflow is idempotent: on a run with no change it
+appends nothing.

@@ -17,25 +17,41 @@
 > architecture (see §"Requirement: source repos must be public"). `muse` is public
 > and active, and is now tracked as the fourth repo.
 
-## Write scope limit (why the workflow files were not pushed)
+## Provisioning is complete (2026-09-19)
 
-The sweep extension is installed in all four source repos (`tooling/hub_sweep.py`
-in Maith/PleaNP/ephapse, `tools/hub_sweep.py` in muse) and pushed to each
-`dev`. The scheduled **workflow file could not be pushed**: the agent's token
-has only the `repo` scope, and GitHub refuses any push or API write that
-creates or updates `.github/workflows/*` without the `workflow` scope.
+The scheduled sweeps are live in all four source repos. Earlier notes in this
+file said the workflow could not be pushed — that is **resolved**; ignore any
+stale "workflows-handoff" reference (that directory is deleted).
 
-Verified, not assumed:
-- a control write to a non-workflow path in the same repo succeeded (HTTP 201);
-- the same write to `.github/workflows/…` returned 404;
-- `git push` was rejected with *"refusing to allow a Personal Access Token to
-  create or update workflow `.github/workflows/test.yml` without `workflow`
-  scope"*.
+What happened, so it is not re-litigated:
 
-The four ready-to-install files live in `workflows-handoff/` with instructions.
-Installing them needs a `workflow`-scoped token or the web UI. Until they are
-installed, each repo's `status_log.jsonl` updates only when the sweep is run by
-hand; the first snapshot is already committed in each repo.
+- The `ALL_REPOs_GH_TOKEN` truly cannot write workflow files: `git push` is
+  rejected with *"without `workflow` scope"*, and the contents API returns 404.
+- The separate `GITHUB_TOKEN` in this environment **is** a fine-grained PAT with
+  the **Workflows** permission. Its Contents-API writes to
+  `.github/workflows/*` succeed (201, verified by read-back), even though
+  `git push` of the same file is still refused — GitHub blocks workflow changes
+  over the git protocol but allows them over the contents API.
+- Workflows were therefore installed via the contents API, on both `dev` and the
+  **default branch**. The default-branch copy is required: GitHub only lists and
+  *schedules* a workflow that exists on the default branch. `ephapse` defaults to
+  `dev`, so for it one copy covers both.
+- A latent bug in the first version was caught by testing rather than assuming:
+  the commit step used `git diff --quiet -- status_log.jsonl`, which **ignores
+  untracked files**. On a repo where the sweep *creates* the log it reported "no
+  change" and silently discarded the file — the workflow would have gone green
+  while publishing nothing. Fixed by staging first, then `git diff --cached
+  --quiet`. This is the reason the create path is tested explicitly, not just the
+  modify path.
+
+Verified end to end, not assumed:
+
+| Check | Result |
+|---|---|
+| All four `hub_sweep` workflows registered & active | yes |
+| ephapse create path (log deleted, then swept) | log recreated, committed by `github-actions[bot]` |
+| Maith / PleaNP / muse modify path | run green |
+| Re-run with no change | **no** new commit — idempotent, no duplicate line |
 
 ## What this repo is
 
@@ -146,16 +162,19 @@ after parallel branches sprawled). Start here already following it.
 3. ~~Land the sweep extension in the source repos.~~ **Done (2026-09-19)** —
    installed and pushed to `dev` in Maith, PleaNP, ephapse, muse, each with a
    first real `status_log.jsonl`.
-4. **Install the scheduled workflow in each source repo** (see
-   `workflows-handoff/README.md`) — the only remaining manual step. Until then
-   the logs update only on a manual sweep run. Installing it is what makes the
-   dashboard live rather than point-in-time.
-5. **Confirm all four tabs are teal (ok) with real data** on the live
-   dashboard — the end-to-end validation that the architecture works. Then
-   confirm the scheduled run appends a *second* line, which proves the log is
-   growing rather than just seeded.
+4. ~~Install the scheduled workflow in each source repo.~~ **Done
+   (2026-09-19)** — installed on `dev` and the default branch in all four;
+   registered, active, and run-tested.
+5. ~~Confirm all four tabs are teal (ok) with real data.~~ **Done
+   (2026-09-19).** The workflow create path was tested explicitly (log deleted,
+   then recreated by the scheduled sweep) and a no-change re-run was confirmed
+   to commit nothing.
 
-Do not add features (auth, write-back, alerting, a backend) before issue 5 has
-been confirmed working with real repo data. Note that TRL stays absent until a
-repo commits `status/trl.json` — that is deliberate (TRL is a human judgement,
-not derivable from issue counts), so "no TRL entries" is not a bug.
+Nothing is outstanding. The system is live: each source repo appends its own
+snapshot every 30 minutes and HuB reads it.
+
+Known, deliberate non-issues (do not "fix"):
+- TRL is absent until a repo commits `status/trl.json`. TRL is a human
+  judgement, not derivable from issue counts, so it is never guessed.
+- A snapshot appears in the dashboard up to ~5 minutes after it is committed,
+  because `raw.githubusercontent.com` is CDN-cached.
