@@ -21,6 +21,7 @@ branch:
 | Maith | `allenpd728/Maith` | `dev` |
 | PleaNP | `allenpd728/PleaNP` | `dev` |
 | Ephapse | `allenpd728/ephapse` | `dev` |
+| Muse | `allenpd728/muse` | `dev` |
 
 Adding a repo is one addition to the `repos` array. Note that
 `raw.githubusercontent.com` only serves **public** repos to an unauthenticated
@@ -36,5 +37,12 @@ client-side fetch, so a private repo cannot be added.
 
 ## Current expected state
 
-No tracked repo has landed its sweep extension yet, so all three tabs should show
-amber **empty**. That is the correct first-run signal, not a bug.
+The sweep extension is now installed and pushed to all four source repos'
+`dev` branches (see `workflows-handoff/README.md`). Each repo also carries a
+first `status_log.jsonl` snapshot, so the dashboard should render **teal (ok)**
+for all four tabs.
+
+The one remaining manual step is installing the scheduled workflow file in each
+source repo — it could not be pushed by the agent's token (no `workflow`
+scope). Until then the log updates only when someone runs the sweep by hand.
+See `workflows-handoff/README.md`.

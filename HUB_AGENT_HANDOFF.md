@@ -15,13 +15,32 @@
 >
 > Also verified: `philharmonic` is **private**, so it can never be tracked by this
 > architecture (see §"Requirement: source repos must be public"). `muse` is public
-> and active but is not tracked here; add it to `config.json` if wanted.
+> and active, and is now tracked as the fourth repo.
+
+## Write scope limit (why the workflow files were not pushed)
+
+The sweep extension is installed in all four source repos (`tooling/hub_sweep.py`
+in Maith/PleaNP/ephapse, `tools/hub_sweep.py` in muse) and pushed to each
+`dev`. The scheduled **workflow file could not be pushed**: the agent's token
+has only the `repo` scope, and GitHub refuses any push or API write that
+creates or updates `.github/workflows/*` without the `workflow` scope.
+
+Verified, not assumed:
+- a control write to a non-workflow path in the same repo succeeded (HTTP 201);
+- the same write to `.github/workflows/…` returned 404;
+- `git push` was rejected with *"refusing to allow a Personal Access Token to
+  create or update workflow `.github/workflows/test.yml` without `workflow`
+  scope"*.
+
+The four ready-to-install files live in `workflows-handoff/` with instructions.
+Installing them needs a `workflow`-scoped token or the web UI. Until they are
+installed, each repo's `status_log.jsonl` updates only when the sweep is run by
+hand; the first snapshot is already committed in each repo.
 
 ## What this repo is
 
 HuB is a read-only, static dashboard aggregating `status_log.jsonl` from
-Maith, PleaNP, and Ephapse (and any future research repo added to
-`config.json`), rendering TRL maturity and Kanban flow metrics per repo.
+the repos listed in `config.json` (currently Maith, PleaNP, ephapse, muse), rendering TRL maturity and Kanban flow metrics per repo.
 Hosted on GitHub Pages. See PM_STATUS_FRAMEWORK.md (in Maith, or copied
 here for reference) for what TRL and the flow metrics mean and where the
 source data comes from.
@@ -119,18 +138,24 @@ after parallel branches sprawled). Start here already following it.
 
 ## Immediate first issues
 
-1. ~~Confirm `config.json`'s owner/repo/branch values are correct for all three
-   source repos, and that all three are currently public.~~ **Done (2026-09-19).**
-   See the state-correction table above: `ephapse`/`dev` and `Maith`/`dev` were
-   wrong and are fixed. All three tracked repos are public.
-2. **Enable GitHub Pages and confirm the dashboard loads**, showing the "empty"
-   state correctly for all three repos (none has run its sweep extension yet —
-   this is a valid, expected first-run state, not a failure to fix).
-3. **Once any one source repo (Maith, PleaNP, or Ephapse) lands its sweep
-   extension per `PM_STATUS_FRAMEWORK.md`**, confirm that repo's tab goes from
-   amber (empty) to teal (ok) with real data — this is the actual end-to-end
-   validation that the whole architecture works, more meaningful than anything
-   that can be checked from HuB's side alone.
+1. ~~Confirm `config.json`'s owner/repo/branch values are correct and that all
+   tracked repos are public.~~ **Done (2026-09-19).** See the state-correction
+   table above: `ephapse`/`dev` and `Maith`/`dev` were wrong and are fixed.
+2. ~~Enable GitHub Pages and confirm the dashboard loads.~~ **Done
+   (2026-09-19)** — <https://allenpd728.github.io/HuB/> is live.
+3. ~~Land the sweep extension in the source repos.~~ **Done (2026-09-19)** —
+   installed and pushed to `dev` in Maith, PleaNP, ephapse, muse, each with a
+   first real `status_log.jsonl`.
+4. **Install the scheduled workflow in each source repo** (see
+   `workflows-handoff/README.md`) — the only remaining manual step. Until then
+   the logs update only on a manual sweep run. Installing it is what makes the
+   dashboard live rather than point-in-time.
+5. **Confirm all four tabs are teal (ok) with real data** on the live
+   dashboard — the end-to-end validation that the architecture works. Then
+   confirm the scheduled run appends a *second* line, which proves the log is
+   growing rather than just seeded.
 
-Do not add features (auth, write-back, alerting, a backend) before issue 3 has
-been confirmed working with at least one real repo's real data.
+Do not add features (auth, write-back, alerting, a backend) before issue 5 has
+been confirmed working with real repo data. Note that TRL stays absent until a
+repo commits `status/trl.json` — that is deliberate (TRL is a human judgement,
+not derivable from issue counts), so "no TRL entries" is not a bug.

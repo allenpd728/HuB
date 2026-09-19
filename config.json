@@ -2,6 +2,7 @@
   "repos": [
     { "name": "Maith",   "owner": "allenpd728", "repo": "Maith",   "branch": "dev" },
     { "name": "PleaNP",  "owner": "allenpd728", "repo": "PleaNP",  "branch": "dev" },
-    { "name": "Ephapse", "owner": "allenpd728", "repo": "ephapse", "branch": "dev" }
+    { "name": "Ephapse", "owner": "allenpd728", "repo": "ephapse", "branch": "dev" },
+    { "name": "Muse",    "owner": "allenpd728", "repo": "muse",    "branch": "dev" }
   ]
 }
