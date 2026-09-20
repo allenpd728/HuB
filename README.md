@@ -13,15 +13,15 @@ schema every source repo must match.
 
 ## Tracked repos
 
-`config.json` currently tracks three public repos, all on their active `dev`
+`config.json` currently tracks four public repos, all on their active `dev`
 branch:
 
 | Repo | Owner / repo | Branch |
 |---|---|---|
-| Maith | `allenpd728/Maith` | `dev` |
-| PleaNP | `allenpd728/PleaNP` | `dev` |
-| Ephapse | `allenpd728/ephapse` | `dev` |
-| Muse | `allenpd728/muse` | `dev` |
+| Maith | `philipdallen/Maith` | `dev` |
+| PleaNP | `philipdallen/PleaNP` | `dev` |
+| Ephapse | `philipdallen/ephapse` | `dev` |
+| Muse | `philipdallen/muse` | `dev` |
 
 Adding a repo is one addition to the `repos` array. Note that
 `raw.githubusercontent.com` only serves **public** repos to an unauthenticated
