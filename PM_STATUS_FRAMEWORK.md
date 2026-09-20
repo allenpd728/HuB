@@ -57,62 +57,124 @@ cue, not a second definition. The meaning of a level is the table below.
 
 ## What TRL means here
 
-TRL (Technology Readiness Level) is the standard 1–9 scale for how far a
-technology is from a lab idea to routine operational use. It originated with NASA
-for hardware and is widely applied to software. Applied to a research repo, the
+TRL (Technology Readiness Level) is a 1–9 scale for how far a capability is from
+a written idea to routine operational use. Applied to a research repo, the
 "technology" is a **component**: a named capability the project intends to rely
 on or hand to someone else — not the project as a whole, and not its research
 hypothesis.
 
-This scale is **adopted here by proposal** (2026-09-19) and is the semantic the
-numbers are expected to carry. It is the piece the original handoff referenced as
-defined in `PM_STATUS_FRAMEWORK.md` but which existed nowhere; this table is that
-definition. Adjust it deliberately if it does not fit — but change it *here*, so
-every repo reads the same meaning.
+### The scale is derived from the ladders these repos already run
 
-| Level | Name | What it means in a research repo |
-|---|---|---|
-| 1 | Principles observed | The idea is written down and motivated. No code. |
-| 2 | Concept formulated | Scope and approach specified: what it does, its inputs and outputs, where it lives. Still no working code. |
-| 3 | Proof of concept | A minimal prototype runs on a synthetic or toy case. Shows the mechanism works, not that it is correct on real inputs. |
-| 4 | Validated in lab | Works on real project inputs in the dev environment; known-answer tests pass on a small case. |
-| 5 | Validated in its own environment | Passes the repo's actual CI gates and fixtures, and is reproducible by a second agent from a clean checkout. |
-| 6 | Demonstrated at intended scale | Runs end-to-end on the full intended corpus or input set, not a subset. |
-| 7 | Used by a consumer | Something outside the component's own tests depends on it: a sibling module, another repo, or a human using its output for its real purpose. |
-| 8 | Complete and qualified | All gates green, no known defects, documented, and frozen — changes are deliberate revisions rather than churn. |
-| 9 | Proven in operation | Sustained real use producing results, with routine maintenance instead of active development. |
+Rather than importing NASA's hardware scale, the levels below are the **join of
+the maturity structures already in use** in the four tracked repos. Each was
+already precise, already battle-tested, and already enforced by tooling:
+
+| Existing structure | Where it lives |
+|---|---|
+| **Typed → Validated → Frozen** (a definition's status ladder; "anchor" forbidden below frozen) | PleaNP `docs/VALIDATION_SUITE.md` §"Status ladder" |
+| **Observed → Recorded → Surface-controlled → Causal per-feature → Causal aggregate → Handed off** (applied to claims; explicitly notes which rungs are not currently reachable) | ephapse `docs/reference/TEST_VALIDATION_SPEC.md` §5 |
+| **"A check must be able to fail"** — every gate ships a fixture that makes it fail; a check that cannot fail is not a check | ephapse `TEST_VALIDATION_SPEC.md` §4; PleaNP gate-scanner self-tests; Maith CI |
+| **Five stations, five gates** (`IR Build → Corpus → Dataset → Training → Evaluation`, each gated) | Maith `docs/reference/PIPELINE_QUALITY_GATES.md` |
+| **Phase "done when" criteria** + own-vs-product split (deterministic player is the free baseline; the LLM player is the product) | muse `docs/pipeline.md` |
+
+The mapping is not decorative — it is what makes a level defensible. A level is
+only claimable if the corresponding structure in that repo says so.
+
+| Level | Name | Cross-repo meaning | Nearest existing structure |
+|---|---|---|---|
+| 1 | Specified | Idea and scope written down. No code. | A Maith hypothesis entry; a muse design doc; an ephapse filed issue |
+| 2 | Scaffolded | Files exist; may be stubs, placeholders, or `sorry`'d bodies. Compiles at best. | PleaNP **Typed** ("parameters may be unused; bodies may be sorry'd") |
+| 3 | Runs on real inputs | Works on actual project inputs, not only a synthetic or toy case. | ephapse **Observed**; pre-Validated PleaNP |
+| 4 | Mechanically gated | Passes the repo's own Tier-0/CI scanners (hygiene, vacuity, model-consistency, label hygiene, conformance). | ephapse **Recorded**; Maith Tier-1 gates; muse task `done` |
+| 5 | Ladder-validated | The repo's own validation suite passes — must-prove *and* must-refute proven, no `sorry`, every parameter load-bearing, and each check has a fixture proving it can fail. | PleaNP **Validated**; ephapse's check-must-fail rule |
+| 6 | Proven at intended scale | Ran end-to-end on the full intended corpus/input set, not a subset. | ephapse **Causal aggregate** (its strongest currently attainable rung); muse phase "done when" |
+| 7 | Consumed elsewhere | Something outside the component's own tests depends on it: a sibling module, another repo, or a human using its output for its real purpose. | ephapse **Handed off** (a human passes a candidate to Maith); Maith importing PleaNP; PleaNP's root lakefile existing so downstream repos can `require PleaNP` |
+| 8 | Frozen / anchor | Gates passed **and** human review done. It is the canonical reference; changes are deliberate revisions, not churn. | PleaNP **Frozen** ("proof search may run against it") |
+| 9 | Operational | Sustained real use producing results, with routine maintenance rather than active development. | — (no repo claims this yet; that is expected, not a gap) |
+
+**Level 7 before 8 is deliberate.** A capability can be depended on by a consumer
+(e.g. a hand-off to a sibling repo, or a module others import) while still not
+being frozen as a canonical anchor. PleaNP's ladder orders it the same way in
+practice: proof search may only run against a *Frozen* definition, which is a
+stricter bar than merely being used.
+
+**A level above a repo's own ceiling is not available.** ephapse records that its
+rung 3 is "not currently reachable at pythia-70m" and that rung 5 "is not
+reachable by an agent". Where a repo documents a ceiling, a component cannot be
+rated above it however good the tooling looks.
 
 ### Rules that keep the number honest
+
+These are the same disciplines the repos already enforce on their own ladders,
+restated for a cross-repo number:
 
 - **Rate the weakest real capability, not the best demo.** A component is only as
   ready as its least-ready load-bearing part.
 - **A component can go down.** If a regression invalidates a claimed property,
-  lower the number. A monotonic TRL is a warning sign, not a goal.
+  lower the number. A monotonic TRL is a warning sign, not a goal. This is
+  PleaNP's reset notice and ephapse's rung-3 findings applied to a single field.
+- **A check that cannot fail is not a check — and does not raise readiness.**
+  Passing a scanner that would also pass on a broken input is not evidence. This
+  is ephapse `TEST_VALIDATION_SPEC.md` §4 (`RUNS-MUST-DETECT`, the positive-control
+  rule) and PleaNP's gate-scanner self-tests.
 - **TRL is about the component's readiness, not the project's confidence in its
   hypothesis.** A well-built tool for testing a hypothesis that turned out false
-  can still be TRL 8. Say so.
+  can still be rated 8. Ephapse states this explicitly: its rungs are about the
+  apparatus, and a null result does not lower the instrument.
+- **Do not claim a level the repo's own ladder cannot reach.** ephapse documents
+  that its rung 3 is not reachable at pythia-70m; a component there cannot be
+  rated as though it were.
 - **It is a judgement, not a measurement.** Do not invent decimals or derive it
   from issue counts — that is exactly why the sweep refuses to compute it.
 - **Prefer several honest components over one vague aggregate.** `"project": 5` is
   not a useful entry.
 - **Not every component needs a level.** Omit anything you would not defend.
+  `null` in the template means "not rated", which is a truthful state — and the
+  sweep skips it rather than reading it as 0.
 
-### Relationship to ladders the repos already keep
+### Worked example: how to arrive at a number
 
-Some repos already track per-deliverable status in their own docs — PleaNP's rung
-table, Maith's hypothesis grid, ephapse's `claims/`. **Those remain
-authoritative.** TRL is a coarse, hand-maintained summary for a cross-repo
-dashboard, and it must not become a second tracker:
+Applying the table to a real component, so the reasoning is checkable rather than
+declared. PleaNP's **Barrier Calculus** (Rung 5; `lean/PleaNP/Calculus/`, ~1,049
+lines across seven modules; covered by CI and by a `#barrier_check` verdict
+harness that fails if an expected verdict line is missing or flips):
 
-- Where a repo's own doc and HuB disagree, **the repo's own doc wins** — the same
-  rule that already applies to `flow` metrics.
+| Level | Met? | Evidence checked |
+|---|---|---|
+| 2 — Scaffolded | yes | Modules exist and are built by CI. |
+| 4 — Mechanically gated | yes | CI runs hygiene, vacuity, model-consistency, unicode, and binder-usage scans over `lean/PleaNP/Calculus`, plus `barrier_check_test.py`, which asserts the four `#barrier_check` verdict lines and fails on a regression. |
+| 5 — Ladder-validated | **no** | PleaNP's *Validated* bar (its own words) requires "must-prove lemmas are proven (not sorry'd), must-refute lemmas are proven, smoke tests pass. Every parameter is load-bearing." The binder scan returns 17 REVIEW items (advisory dead-code candidates, not violations), and the component has no entry in `VALIDATION_SUITE.md`. |
+| 8 — Frozen | **no** | PleaNP's own rung table still reads "In progress (prototype in `lean/PleaNP/Calculus/`)", and its machine-readable `formalization.yaml` vocabulary only ever reaches `rendered-not-frozen` / `validated-in-ci` — never `frozen` for this work. |
+
+So Barrier Calculus is **4**. Note what did *not* decide it: the module is large,
+ambitious, and CI-green, and a careless reading would call that "nearly done".
+The number came from checking the repo's own stated bar and finding one specific
+condition unmet — and that condition is quotable, so a reader who disagrees can
+point at it rather than argue about adjectives.
+
+The method also works in the other direction. A component that is `done` on muse's
+Phase table **and** covered by its conformance runner legitimately reaches 4 even
+while development continues, because "gated" and "finished" are different claims.
+And ephapse's validation layer, which the README calls a first-class output with
+`RUNS-MUST-DETECT` discipline, can reach 4 on the strength of its own gate runner
+(11/11 gates pass) without any claim about the scientific finding it serves.
+
+### These levels are a summary, not a second tracker
+
+Where a repo's own doc and HuB disagree, **the repo's own doc wins** — the same
+rule that already applies to `flow`. Do not maintain two sources of truth:
+
+- Where a repo's own doc and HuB disagree, **the repo's own doc wins**.
 - Name TRL components after **capabilities you would hand to someone else**, not
-  after internal tasks. That keeps the two axes genuinely different: a rung table
-  says *what is in scope and in what order*; a TRL level says *how usable that
-  piece is right now*.
+  after internal tasks. A rung table says *what is in scope and in what order*; a
+  TRL level says *how usable that piece is right now*. That keeps the axes
+  genuinely different.
 - Update a level when the piece's **reusability** changes, not when a task moves
   label. If a task transition would change nothing for a consumer, it should not
   change the number.
+- Do not restate per-item statuses in TRL. If you find yourself tracking more than
+  roughly five components, you have started building the second tracker this
+  section exists to prevent — point at the repo's doc instead.
 
 ### Who updates it, and when
 
