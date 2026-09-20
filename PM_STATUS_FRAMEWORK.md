@@ -209,7 +209,16 @@ and the scheduled `hub_sweep` workflow installed on their tracked and default
 branches, so `status_log.jsonl` exists and is appended to automatically. All four
 dashboard tabs show real `flow` data.
 
-`trl` is intentionally absent everywhere: no repo has committed `status/trl.json`
-yet, so HuB shows "No TRL entries". That is the correct state for a repo that has
-not made the human judgement described above — not a bug, and not something to
-backfill with estimates.
+`trl` is **populated** as of 2026-09-20. Each repo's `status/trl.json` carries a
+`components` map (what the dashboard reads) plus a `_rationale` map recording, per
+component, the exact rule and evidence the level was read off — so a rating can be
+challenged on its evidence rather than its adjective. `_rationale` is ignored by
+the sweep parser by design; only `components` is read.
+
+Levels are **derived from each repo's own ladder**, never estimated. A component
+is only rated where the repo's own structure says so, and where a repo documents
+a ceiling the level stops there.
+
+Raising a level means changing the underlying evidence first, then the number —
+not the other way round. When a component's evidence changes, update
+`status/trl.json` in that repo; the dashboard follows on the next sweep.

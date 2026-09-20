@@ -174,11 +174,9 @@ Nothing is outstanding. The system is live: each source repo appends its own
 snapshot every 30 minutes and HuB reads it.
 
 Known, deliberate non-issues (do not "fix"):
-- TRL is absent until a repo commits `status/trl.json`. TRL is a human
-  judgement, not derivable from issue counts, so it is never guessed. What each
-  level means is defined in `PM_STATUS_FRAMEWORK.md` §"What TRL means here"; each
-  source repo's `docs/HUB_STATUS_LOG.md` lists its candidate components and ships
-  a `status/trl.json.template` to fill in. Until a human sets real levels,
-  "No TRL entries" is correct.
+- TRL levels are populated and derived from each repo's own ladder. They are
+  **judgements with recorded rationales**, not measurements: never "correct" a
+  level by editing the number alone. Change the evidence, then the level. A level
+  above a repo's documented ceiling is invalid by construction.
 - A snapshot appears in the dashboard up to ~5 minutes after it is committed,
   because `raw.githubusercontent.com` is CDN-cached.
