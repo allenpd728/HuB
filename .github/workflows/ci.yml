@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate config against live repos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      # Fails if any tracked owner/repo/branch no longer resolves, or a
+      # status_log.jsonl is missing/empty/malformed — the failure mode that
+      # otherwise shows up only as an amber tab in the deployed dashboard.
+      - name: Validate config.json
+        run: python3 tools/validate_config.py
