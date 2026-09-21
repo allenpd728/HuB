@@ -75,19 +75,19 @@ already precise, already battle-tested, and already enforced by tooling:
 | **Observed → Recorded → Surface-controlled → Causal per-feature → Causal aggregate → Handed off** (applied to claims; explicitly notes which rungs are not currently reachable) | ephapse `docs/reference/TEST_VALIDATION_SPEC.md` §5 |
 | **"A check must be able to fail"** — every gate ships a fixture that makes it fail; a check that cannot fail is not a check | ephapse `TEST_VALIDATION_SPEC.md` §4; PleaNP gate-scanner self-tests; Maith CI |
 | **Five stations, five gates** (`IR Build → Corpus → Dataset → Training → Evaluation`, each gated) | Maith `docs/reference/PIPELINE_QUALITY_GATES.md` |
-| **Phase "done when" criteria** + own-vs-product split (deterministic player is the free baseline; the LLM player is the product) | muse `docs/pipeline.md` |
+| **Phase "done when" criteria** + own-vs-product split (deterministic player is the free baseline; the LLM player is the product) | rubato `docs/pipeline.md` |
 
 The mapping is not decorative — it is what makes a level defensible. A level is
 only claimable if the corresponding structure in that repo says so.
 
 | Level | Name | Cross-repo meaning | Nearest existing structure |
 |---|---|---|---|
-| 1 | Specified | Idea and scope written down. No code. | A Maith hypothesis entry; a muse design doc; an ephapse filed issue |
+| 1 | Specified | Idea and scope written down. No code. | A Maith hypothesis entry; a rubato design doc; an ephapse filed issue |
 | 2 | Scaffolded | Files exist; may be stubs, placeholders, or `sorry`'d bodies. Compiles at best. | PleaNP **Typed** ("parameters may be unused; bodies may be sorry'd") |
 | 3 | Runs on real inputs | Works on actual project inputs, not only a synthetic or toy case. | ephapse **Observed**; pre-Validated PleaNP |
-| 4 | Mechanically gated | Passes the repo's own Tier-0/CI scanners (hygiene, vacuity, model-consistency, label hygiene, conformance). | ephapse **Recorded**; Maith Tier-1 gates; muse task `done` |
+| 4 | Mechanically gated | Passes the repo's own Tier-0/CI scanners (hygiene, vacuity, model-consistency, label hygiene, conformance). | ephapse **Recorded**; Maith Tier-1 gates; rubato task `done` |
 | 5 | Ladder-validated | The repo's own validation suite passes — must-prove *and* must-refute proven, no `sorry`, every parameter load-bearing, and each check has a fixture proving it can fail. | PleaNP **Validated**; ephapse's check-must-fail rule |
-| 6 | Proven at intended scale | Ran end-to-end on the full intended corpus/input set, not a subset. | ephapse **Causal aggregate** (its strongest currently attainable rung); muse phase "done when" |
+| 6 | Proven at intended scale | Ran end-to-end on the full intended corpus/input set, not a subset. | ephapse **Causal aggregate** (its strongest currently attainable rung); rubato phase "done when" |
 | 7 | Consumed elsewhere | Something outside the component's own tests depends on it: a sibling module, another repo, or a human using its output for its real purpose. | ephapse **Handed off** (a human passes a candidate to Maith); Maith importing PleaNP; PleaNP's root lakefile existing so downstream repos can `require PleaNP` |
 | 8 | Frozen / anchor | Gates passed **and** human review done. It is the canonical reference; changes are deliberate revisions, not churn. | PleaNP **Frozen** ("proof search may run against it") |
 | 9 | Operational | Sustained real use producing results, with routine maintenance rather than active development. | — (no repo claims this yet; that is expected, not a gap) |
@@ -152,7 +152,7 @@ The number came from checking the repo's own stated bar and finding one specific
 condition unmet — and that condition is quotable, so a reader who disagrees can
 point at it rather than argue about adjectives.
 
-The method also works in the other direction. A component that is `done` on muse's
+The method also works in the other direction. A component that is `done` on rubato's
 Phase table **and** covered by its conformance runner legitimately reaches 4 even
 while development continues, because "gated" and "finished" are different claims.
 And ephapse's validation layer, which the README calls a first-class output with
@@ -204,7 +204,7 @@ label claims, and stale-claim sweeps — see the source repos' own
 
 ## Current state
 
-All four tracked repos (Maith, PleaNP, ephapse, muse) have the sweep extension
+All four tracked repos (Maith, PleaNP, ephapse, rubato) have the sweep extension
 and the scheduled `hub_sweep` workflow installed on their tracked and default
 branches, so `status_log.jsonl` exists and is appended to automatically. All four
 dashboard tabs show real `flow` data.

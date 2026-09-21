@@ -14,7 +14,7 @@
 > | — | No repo has a `status_log.jsonl` yet. | Expected — all tabs should show amber **empty**. Do not "fix". |
 >
 > Also verified: `philharmonic` is **private**, so it can never be tracked by this
-> architecture (see §"Requirement: source repos must be public"). `muse` is public
+> architecture (see §"Requirement: source repos must be public"). `rubato` is public
 > and active, and is now tracked as the fourth repo.
 
 ## Provisioning is complete (2026-09-19)
@@ -50,13 +50,13 @@ Verified end to end, not assumed:
 |---|---|
 | All four `hub_sweep` workflows registered & active | yes |
 | ephapse create path (log deleted, then swept) | log recreated, committed by `github-actions[bot]` |
-| Maith / PleaNP / muse modify path | run green |
+| Maith / PleaNP / rubato modify path | run green |
 | Re-run with no change | **no** new commit — idempotent, no duplicate line |
 
 ## What this repo is
 
 HuB is a read-only, static dashboard aggregating `status_log.jsonl` from
-the repos listed in `config.json` (currently Maith, PleaNP, ephapse, muse), rendering TRL maturity and Kanban flow metrics per repo.
+the repos listed in `config.json` (currently Maith, PleaNP, ephapse, rubato), rendering TRL maturity and Kanban flow metrics per repo.
 Hosted on GitHub Pages. See PM_STATUS_FRAMEWORK.md (in Maith, or copied
 here for reference) for what TRL and the flow metrics mean and where the
 source data comes from.
@@ -112,7 +112,7 @@ embedded in HuB itself.
 ```json
 {
   "repos": [
-    { "name": "Maith",   "owner": "allenpd728", "repo": "Maith",   "branch": "main" }
+    { "name": "Maith",   "owner": "philipdallen", "repo": "Maith",   "branch": "main" }
   ]
 }
 ```
@@ -158,9 +158,9 @@ after parallel branches sprawled). Start here already following it.
    tracked repos are public.~~ **Done (2026-09-19).** See the state-correction
    table above: `ephapse`/`dev` and `Maith`/`dev` were wrong and are fixed.
 2. ~~Enable GitHub Pages and confirm the dashboard loads.~~ **Done
-   (2026-09-19)** — <https://allenpd728.github.io/HuB/> is live.
+   (2026-09-19)** — <https://philipdallen.github.io/HuB/> is live.
 3. ~~Land the sweep extension in the source repos.~~ **Done (2026-09-19)** —
-   installed and pushed to `dev` in Maith, PleaNP, ephapse, muse, each with a
+   installed and pushed to `dev` in Maith, PleaNP, ephapse, rubato, each with a
    first real `status_log.jsonl`.
 4. ~~Install the scheduled workflow in each source repo.~~ **Done
    (2026-09-19)** — installed on `dev` and the default branch in all four;

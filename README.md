@@ -21,7 +21,7 @@ branch:
 | Maith | `philipdallen/Maith` | `dev` |
 | PleaNP | `philipdallen/PleaNP` | `dev` |
 | Ephapse | `philipdallen/ephapse` | `dev` |
-| Muse | `philipdallen/muse` | `dev` |
+| Rubato | `philipdallen/rubato` | `dev` |
 
 Adding a repo is one addition to the `repos` array. Note that
 `raw.githubusercontent.com` only serves **public** repos to an unauthenticated
@@ -38,7 +38,7 @@ client-side fetch, so a private repo cannot be added.
 ## Current state
 
 All four source repos have the sweep extension (`tooling/hub_sweep.py`, or
-`tools/hub_sweep.py` in muse) and the scheduled `hub_sweep` workflow installed
+`tools/hub_sweep.py` in rubato) and the scheduled `hub_sweep` workflow installed
 on their `dev` and default branches. All four dashboard tabs render **teal
 (ok)** with real data. The workflow is idempotent: on a run with no change it
 appends nothing.
