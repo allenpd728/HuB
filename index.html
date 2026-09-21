@@ -289,18 +289,24 @@ function renderCurrent() {
   const entries = state.entries;
   const latest = entries[entries.length - 1];
   const components = latest.trl || {};
+  // Missing fields stay undefined. The sweep's own rule is "an absent field is
+  // a true statement" — defaulting to 0 here would turn "not measured" into a
+  // published zero. See portfolio-ops/METRIC_CONTRACT.md rule 4.
   const sweeps = entries.map(e => {
     const trlVals = Object.values(e.trl || {});
-    const avgTrl = trlVals.length ? trlVals.reduce((a,b)=>a+b,0) / trlVals.length : 0;
+    const avgTrl = trlVals.length ? trlVals.reduce((a,b)=>a+b,0) / trlVals.length : undefined;
     const f = e.flow || {};
     return {
       ts: (e.timestamp || '').slice(5, 10),
-      wip: f.wip ?? 0,
-      blocked: f.blocked ?? 0,
-      open_total: f.open_total ?? 0,
-      blocked_ratio: f.blocked_ratio ?? 0,
-      cycle_h: f.cycle_time_median_hours ?? 0,
-      stale: f.stale_reversions_since_last ?? 0,
+      wip: f.wip,
+      blocked: f.blocked,
+      janitorial: f.janitorial,
+      available: f.available,
+      needs_review: f.needs_review,
+      open_total: f.open_total,
+      blocked_ratio: f.blocked_ratio,
+      cycle_h: f.cycle_time_median_hours,
+      stale: f.stale_reversions_since_last,
       _avgTrl: avgTrl
     };
   });
@@ -349,12 +355,19 @@ function renderTRL(components) {
 
 function renderStats(latest) {
   const el = document.getElementById('statGrid');
+  // A field the sweep did not measure renders as an em dash, not as 0.
+  const show = v => (v === undefined || v === null) ? '—' : v;
+  const pct = v => (v === undefined || v === null) ? '—' : (v*100).toFixed(0) + '%';
   const items = [
-    { lbl: 'WIP', val: latest.wip, cls: '' },
-    { lbl: 'Blocked ratio', val: (latest.blocked_ratio*100).toFixed(0) + '%',
+    { lbl: 'Open', val: show(latest.open_total), cls: '' },
+    { lbl: 'Available', val: show(latest.available), cls: '' },
+    { lbl: 'WIP', val: show(latest.wip), cls: '' },
+    { lbl: 'Blocked (awaiting input)', val: show(latest.blocked), cls: latest.blocked > 0 ? 'warn' : '' },
+    { lbl: 'Blocked ratio', val: pct(latest.blocked_ratio),
       cls: latest.blocked_ratio > 0.4 ? 'crit' : (latest.blocked_ratio > 0.25 ? 'warn' : '') },
-    { lbl: 'Cycle time (median, hrs)', val: latest.cycle_h, cls: '' },
-    { lbl: 'Stale reversions', val: latest.stale, cls: latest.stale > 0 ? 'warn' : '' }
+    { lbl: 'Awaiting review', val: show(latest.needs_review), cls: '' },
+    { lbl: 'Cycle time (median, hrs)', val: show(latest.cycle_h), cls: '' },
+    { lbl: 'Stale reversions', val: show(latest.stale), cls: latest.stale > 0 ? 'warn' : '' }
   ];
   el.innerHTML = items.map(i => `
     <div class="stat"><div class="num ${i.cls}">${i.val}</div><div class="lbl">${i.lbl}</div></div>`).join('');
@@ -381,18 +394,47 @@ function renderTrend(sweeps) {
     const yy = padT + (innerH * g) / 4;
     gridLines += `<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="var(--line)" stroke-width="1" />`;
   }
-  const trlPath = sweeps.map((s, i) => `${i===0?'M':'L'} ${x(i).toFixed(1)} ${yTrl(s._avgTrl).toFixed(1)}`).join(' ');
-  const ratioPath = sweeps.map((s, i) => `${i===0?'M':'L'} ${x(i).toFixed(1)} ${yRatio(s.blocked_ratio).toFixed(1)}`).join(' ');
+
+  // Build a path from only the defined points, so a sweep that did not measure
+  // a field leaves a gap rather than a plotted zero.
+  const path = (vals, yfn) => {
+    let d = '', pen = false;
+    vals.forEach((v, i) => {
+      if (v === undefined || v === null || Number.isNaN(v)) { pen = false; return; }
+      d += `${pen ? 'L' : 'M'} ${x(i).toFixed(1)} ${yfn(v).toFixed(1)} `;
+      pen = true;
+    });
+    return d.trim();
+  };
   const dots = (vals, yfn, color) => vals.map((v,i) =>
+    (v === undefined || v === null || Number.isNaN(v)) ? '' :
     `<circle cx="${x(i).toFixed(1)}" cy="${yfn(v).toFixed(1)}" r="3" fill="${color}" />`).join('');
   const labels = sweeps.map((s,i) => `<text x="${x(i).toFixed(1)}" y="${H-8}" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-dim)" text-anchor="middle">${esc(s.ts)}</text>`).join('');
 
+  // blocked_ratio changed definition at contract v1 (a sweep whose flow carries
+  // `janitorial` is v1). Plotting both definitions as one line would imply a
+  // trend that did not happen, so mark the boundary and split the line.
+  const firstV1 = sweeps.findIndex(s => s.janitorial !== undefined);
+  let splitMarker = '', ratioPath;
+  const ratioVals = sweeps.map(s => s.blocked_ratio);
+  if (firstV1 > 0) {
+    splitMarker = `<line x1="${x(firstV1-0.5).toFixed(1)}" y1="${padT}" x2="${x(firstV1-0.5).toFixed(1)}" y2="${padT+innerH}" stroke="var(--amber)" stroke-width="1" stroke-dasharray="2 3" opacity="0.6" />
+      <text x="${(x(firstV1-0.5)+4).toFixed(1)}" y="${padT+10}" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-dim)">metric v1</text>`;
+    ratioPath = path(ratioVals.slice(firstV1), yRatio);
+    const before = path(ratioVals.slice(0, firstV1 + 1), yRatio);
+    ratioPath = `<path d="${before}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 3" opacity="0.35" />
+      <path d="${ratioPath}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 3" />`;
+  } else {
+    ratioPath = `<path d="${path(ratioVals, yRatio)}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 3" />`;
+  }
+
   svg.innerHTML = `
     ${gridLines}
-    <path d="${trlPath}" fill="none" stroke="var(--blue)" stroke-width="2" />
+    <path d="${path(sweeps.map(s=>s._avgTrl), yTrl)}" fill="none" stroke="var(--blue)" stroke-width="2" />
     ${dots(sweeps.map(s=>s._avgTrl), yTrl, 'var(--blue)')}
-    <path d="${ratioPath}" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="4 3" />
-    ${dots(sweeps.map(s=>s.blocked_ratio), yRatio, 'var(--amber)')}
+    ${splitMarker}
+    ${ratioPath}
+    ${dots(ratioVals, yRatio, 'var(--amber)')}
     ${labels}
   `;
 }
