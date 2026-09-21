@@ -36,18 +36,38 @@ the convention and is what keeps diffs readable.
 
 ### `flow` object
 
+**Definitions are owned by `portfolio-ops/METRIC_CONTRACT.md` (private).** That
+document wins: if this table and the contract disagree, this table is the bug.
+It is private because it records the change history and the reasons behind
+definition changes; the definitions themselves are reproduced here so the
+schema stays readable.
+
 | Key | Type | Meaning |
 |---|---|---|
-| `wip` | number | Work-in-progress count. |
-| `blocked` | number | Blocked item count. |
-| `open_total` | number | Total open items. |
-| `blocked_ratio` | number 0–1 | Fraction blocked. Rendered as a percentage; coloured amber above `0.25`, rose above `0.40`. |
-| `cycle_time_median_hours` | number | Median cycle time, hours. |
+| `open_total` | number | All open issues (PRs excluded). Denominator for `blocked_ratio`. |
+| `wip` | number | Issues labelled `status:claimed`. |
+| `available` | number | Issues labelled `status:available`. |
+| `blocked` | number | Issues awaiting **human input** — `status:blocked-needs-input`, excluding `on-hold` and `auditor:*` (the audit queue, tracked separately). **Redefined at contract v1 2026-09-21.** |
+| `janitorial` | number | The excluded `status:blocked-needs-input` count (`on-hold` / `auditor:*`). Present only from contract v1, so its presence marks a v1 record. |
+| `needs_review` | number | Issues carrying `needs-review` or any `review:*` label. |
+| `blocked_ratio` | number 0–1 | `blocked / open_total`. Rendered as a percentage; coloured amber above `0.25`, rose above `0.40`. |
+| `cycle_time_median_hours` | number | Median cycle time, hours. Omitted when nothing closed in the 30-day window. |
+| `closed_last_30d` | number | Closed issues in the same window. Present only with `cycle_time_median_hours`. |
 | `stale_reversions_since_last` | number | Reversions discovered by the stale-claim sweep since the previous snapshot. Coloured amber when `> 0`. |
 
-Any absent `flow` key falls back to `0` in the rendered stat grid. The trend chart
-plots, per record, the **mean of that record's `trl` values** against `0–9`, and
-`blocked_ratio` against `0–1`.
+An absent `flow` key renders as an em dash, **not** `0`. A zero published for a
+field that was never measured is a false statement, which is `hub_sweep.py`'s own
+rule. The trend chart plots, per record, the **mean of that record's `trl`
+values** against `0–9`, and `blocked_ratio` against `0–1`; a gap means the field
+was absent, and the line is split at a metric-definition change.
+
+**Why `blocked` is scoped.** Before v1 it counted every `status:blocked-needs-input`
+issue regardless of cause. On 2026-09-21 the auditor relabelled five of its own
+`on-hold` count-drift issues to that status, and ephapse's published
+`blocked_ratio` jumped from `0.071` to `0.415` — rendered as crit — without
+anything about the program changing. A metric a janitorial relabel can move is
+not a program metric. History is append-only, so the correction appears as a
+visible discontinuity in the trend, never as an edited past.
 
 ### TRL rendering bands
 
