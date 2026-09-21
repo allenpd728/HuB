@@ -204,7 +204,7 @@ task and should not be changed by an automated sweep; the sweep only copies the
 committed values into the next snapshot.
 
 Mechanically: commit `status/trl.json` at the repo root on the tracked branch.
-A change appears in the dashboard after the next sweep (up to 30 minutes, plus the
+A change appears in the dashboard after the next sweep (nominally every 30 minutes, but GitHub throttles scheduled runs: observed ~7 runs/24h, median gap 2.3-2.7h, worst 6.3h; plus the
 CDN's ~5 minutes). Each source repo's `docs/HUB_STATUS_LOG.md` lists that repo's
 candidate components and carries a `status/trl.json.template` to start from —
 rename the template to `trl.json` once real levels are set. Until then the field
