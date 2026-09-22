@@ -23,3 +23,10 @@ jobs:
       # otherwise shows up only as an amber tab in the deployed dashboard.
       - name: Validate config.json
         run: python3 tools/validate_config.py
+      # The validator is only trustworthy if it can be shown to fail. This is a
+      # real regression guard: `ephapse` has no `dev` branch, yet
+      # raw.githubusercontent.com serves 200 with main's content for it, so the
+      # pre-git-refs validator reported it healthy. If this step breaks, the
+      # blind spot is back.
+      - name: Prove the validator can fail on broken input
+        run: python3 tools/validate_config.py --self-test
