@@ -1,6 +1,6 @@
 {
   "repos": [
-    { "name": "Maith",   "owner": "philipdallen", "repo": "Maith",   "branch": "main" },
+    { "name": "Maith",   "owner": "philipdallen", "repo": "Maith",   "branch": "status" },
     { "name": "PleaNP",  "owner": "philipdallen", "repo": "PleaNP",  "branch": "main" },
     { "name": "Ephapse", "owner": "philipdallen", "repo": "ephapse", "branch": "main" },
     { "name": "Rubato",  "owner": "philipdallen", "repo": "rubato",  "branch": "main" }
