@@ -145,7 +145,8 @@ def self_test():
         # (label, config entry, must_pass)
         (
             "known-good real branch",
-            {"name": "Maith", "owner": "philipdallen", "repo": "Maith", "branch": "main"},
+            # Tracks live state: Maith's log moved to `status` when #63 landed.
+            {"name": "Maith", "owner": "philipdallen", "repo": "Maith", "branch": "status"},
             True,
         ),
         (
@@ -172,7 +173,7 @@ def self_test():
         # older cached links depend on it resolving. The fix must not break it.
         (
             "renamed owner (legitimate redirect)",
-            {"name": "Old", "owner": "allenpd728", "repo": "Maith", "branch": "main"},
+            {"name": "Old", "owner": "allenpd728", "repo": "Maith", "branch": "status"},
             True,
         ),
     ]
