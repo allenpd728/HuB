@@ -5,8 +5,33 @@ HuB's whole job is fetching status_log.jsonl from the URLs in config.json. A
 typo in an owner, repo, or branch field silently degrades the dashboard to an
 amber "no data" tab, and nothing currently fails. This script is that check.
 
-Run: python3 tools/validate_config.py
+Run: python3 tools/validate_config.py             # validate the real config
+     python3 tools/validate_config.py --self-test # prove the check can fail
 Exit 0 = every tracked repo resolves; 1 = at least one does not.
+
+Why this resolves the branch rather than fetching the raw URL
+------------------------------------------------------------
+Fetching raw.githubusercontent.com/{owner}/{repo}/{branch}/status_log.jsonl
+cannot detect a dead branch, and the earlier version of this script therefore
+passed against branches that did not exist. Two separate causes, both verified
+against this portfolio on 2026-09-22:
+
+1. GitHub serves a deleted-or-never-existing branch lazily, from whatever
+   content it last had. `ephapse` has no `dev` branch - the API agrees - yet
+   raw.githubusercontent.com/philipdallen/ephapse/dev/status_log.jsonl returns
+   200 with a byte-identical copy of main's log (md5 a7ae3448...). No redirect,
+   no error. A stale branch name looks perfectly healthy.
+2. /branches/{branch} itself cannot be used to check existence, because GitHub
+   redirects it to the default branch: GET /branches/dev on `ephapse` returns
+   301 -> /branches/main, so a naive `status == 200` after following redirects
+   resolves a *nonexistent* branch to a *real* one and reports success. This is
+   the same defect class the script exists to catch, so it is worth being
+   explicit: the fix is NOT to stop following redirects.
+
+The reliable check is GET /repos/{owner}/{repo}/git/ref/heads/{branch} - 404
+when the branch is absent, 200 when present, no redirect. On success we then
+fetch the log pinned to the resolved commit SHA, so the content check also
+cannot be satisfied by a stale ref.
 """
 
 import json
@@ -17,7 +42,22 @@ from pathlib import Path
 
 CONFIG = Path(__file__).resolve().parent.parent / "config.json"
 REQUIRED = ("name", "owner", "repo", "branch")
-RAW = "https://raw.githubusercontent.com/{owner}/{repo}/{branch}/status_log.jsonl"
+
+API = "https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{branch}"
+RAW = "https://raw.githubusercontent.com/{owner}/{repo}/{sha}/status_log.jsonl"
+UA = {"User-Agent": "HuB-validate-config", "Accept": "application/vnd.github+json"}
+
+
+def _get(url, headers=None):
+    """GET a URL. Returns (status, body_text); status is None on a network error."""
+    req = urllib.request.Request(url, headers=headers or UA)
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return resp.status, resp.read().decode()
+    except urllib.error.HTTPError as exc:
+        return exc.code, f"HTTP {exc.code}"
+    except urllib.error.URLError as exc:
+        return None, f"network error: {exc.reason}"
 
 
 def load_config(path):
@@ -44,16 +84,40 @@ def load_config(path):
     return repos
 
 
+def resolve_branch(entry):
+    """Return (sha, detail). sha is None if the branch does not exist.
+
+    Uses the git-refs endpoint, which genuinely 404s on a missing branch.
+    /branches/{branch} is deliberately not used: it 301s to the default branch,
+    so it cannot distinguish 'exists' from 'was redirected'.
+    """
+    status, body = _get(API.format(**entry))
+    if status == 200:
+        try:
+            return json.loads(body)["object"]["sha"], "resolved"
+        except (json.JSONDecodeError, KeyError) as exc:
+            return None, f"could not read ref payload: {exc}"
+    if status == 404:
+        # The ref endpoint 404s for a missing branch AND a missing repo, so do
+        # not blame the branch specifically.
+        return None, f"no such repo/branch ({entry['owner']}/{entry['repo']}@{entry['branch']})"
+    return None, body
+
+
 def check(entry):
-    """Return (ok, detail) for one tracked repo: does its status_log.jsonl resolve?"""
-    url = RAW.format(**entry)
-    try:
-        with urllib.request.urlopen(url, timeout=20) as resp:
-            body = resp.read().decode()
-    except urllib.error.HTTPError as exc:
-        return False, f"HTTP {exc.code}"
-    except urllib.error.URLError as exc:
-        return False, f"network error: {exc.reason}"
+    """Return (ok, detail): does the branch exist and hold a parseable log?
+
+    The log is fetched by commit SHA, not by branch name, so the content check
+    cannot pass on a stale ref.
+    """
+    sha, detail = resolve_branch(entry)
+    if sha is None:
+        return False, detail
+
+    url = RAW.format(owner=entry["owner"], repo=entry["repo"], sha=sha)
+    status, body = _get(url)
+    if status != 200:
+        return False, f"log not readable at {sha[:10]}: {body}"
 
     lines = [ln for ln in body.splitlines() if ln.strip()]
     if not lines:
@@ -62,10 +126,77 @@ def check(entry):
         json.loads(lines[-1])
     except json.JSONDecodeError as exc:
         return False, f"last line is not valid JSON: {exc}"
-    return True, f"{len(lines)} entries"
+    return True, f"{len(lines)} entries @ {sha[:10]}"
+
+
+# --- self-test -------------------------------------------------------------
+# Per this repo's own rule, a check is not trusted until it can be shown to
+# fail on deliberately broken input. The regression this guards is specific:
+# before the git-refs resolution, a *nonexistent* branch passed validation,
+# because raw.githubusercontent.com serves a stale branch's last content with
+# a 200. `ephapse` genuinely has no `dev` branch (GET /git/ref/heads/dev is
+# 404) while raw.githubusercontent.com/philipdallen/ephapse/dev/... returns
+# 200. If that case ever passes again, the bug is back.
+
+
+def self_test():
+    """Assert the checker fails on deliberately broken input. Returns exit code."""
+    cases = [
+        # (label, config entry, must_pass)
+        (
+            "known-good real branch",
+            {"name": "Maith", "owner": "philipdallen", "repo": "Maith", "branch": "main"},
+            True,
+        ),
+        (
+            "phantom branch served 200 by raw",
+            {"name": "Ephapse", "owner": "philipdallen", "repo": "ephapse", "branch": "dev"},
+            False,
+        ),
+        (
+            "never-existed branch",
+            {"name": "Maith", "owner": "philipdallen", "repo": "Maith", "branch": "nope-xyz"},
+            False,
+        ),
+        (
+            "missing repo",
+            {"name": "Ghost", "owner": "philipdallen", "repo": "no-such-repo-xyz", "branch": "main"},
+            False,
+        ),
+        (
+            "never-existed owner",
+            {"name": "Nope", "owner": "no-such-owner-xyz", "repo": "Maith", "branch": "main"},
+            False,
+        ),
+        # Must keep PASSING: the allenpd728 rename is a legitimate redirect, and
+        # older cached links depend on it resolving. The fix must not break it.
+        (
+            "renamed owner (legitimate redirect)",
+            {"name": "Old", "owner": "allenpd728", "repo": "Maith", "branch": "main"},
+            True,
+        ),
+    ]
+    failures = []
+    for label, entry, must_pass in cases:
+        ok, detail = check(entry)
+        verdict = "pass" if ok else "FAIL"
+        expected = "pass" if must_pass else "FAIL"
+        mark = "ok  " if ok == must_pass else "BAD "
+        print(f"  [{mark}] {label:38} -> {verdict} ({detail})  expected {expected}")
+        if ok != must_pass:
+            failures.append(label)
+
+    if failures:
+        print(f"\nSELF-TEST FAILED: {len(failures)} case(s) did not behave as required: {failures}")
+        return 1
+    print(f"\nSELF-TEST OK: {len(cases)}/{len(cases)} cases behave as required")
+    return 0
 
 
 def main():
+    if "--self-test" in sys.argv:
+        sys.exit(self_test())
+
     repos = load_config(CONFIG)
     failed = 0
     for entry in repos:
