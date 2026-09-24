@@ -42,9 +42,25 @@ root; no build step. It fetches `status_log.jsonl` from each tracked repo over
 
 ## Environment note
 
-Agents working here have seen `GITHUB_TOKEN` come back as a `ghu_` user-to-server
-token that is expired (`401 Bad credentials`), which blocks `git push`. The
-`ghu_` prefix is the tell — those expire in ~8h. Reads of public repos still work
-unauthenticated, so `automation_sweep.py` and `validate_config.py` can be run
-locally without a token via `--no-token`. Commit locally and push when the token
-is valid.
+Two credential variables exist in the agent environment and they are **different
+tokens**:
+
+- `GITHUB_TOKEN` — valid. Use this one.
+- `GH_TOKEN` — stale, returns `401 Bad credentials`.
+
+`gh` prefers `GH_TOKEN`, so any `gh` command fails with "Bad credentials" even
+though a perfectly good token is present. This looks exactly like an expired
+token and is not. Diagnose it by testing each variable independently:
+
+```bash
+env -u GH_TOKEN bash -c 'curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/user'
+env -u GITHUB_TOKEN bash -c 'curl -s -o /dev/null -w "%{http_code}\n" \
+  -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user'
+```
+
+The fix is to `unset GH_TOKEN` (or use `env -u GH_TOKEN`) before `gh` and
+`git push`. `curl` with an explicit `Authorization` header and `git` with the
+token in the remote URL both work already, which is why reads succeed while
+`gh` fails. Reads of public repos also work fully unauthenticated, so
+`automation_sweep.py --no-token` and `validate_config.py` run without any token.
