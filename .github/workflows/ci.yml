@@ -30,3 +30,8 @@ jobs:
       # blind spot is back.
       - name: Prove the validator can fail on broken input
         run: python3 tools/validate_config.py --self-test
+      # Same rule for the automation sweep: it must be shown to fail. Guards the
+      # stale-claim check in particular, since a silent regression there would
+      # publish "0 stale claims" forever while locks leaked.
+      - name: Prove the automation sweep can fail
+        run: python3 automation_sweep.py --selftest

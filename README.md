@@ -47,32 +47,69 @@ repo becomes visible by adding one entry to `config.json`.
 
 ## Tracked repos
 
-`config.json` currently tracks four public repos, all on `dev`:
+`config.json` currently tracks four public source repos plus this repo's own
+automation log:
 
-| Repo | Owner / repo | Branch |
-|---|---|---|
-| Maith | `philipdallen/Maith` | `dev` |
-| PleaNP | `philipdallen/PleaNP` | `dev` |
-| Ephapse | `philipdallen/ephapse` | `dev` |
-| Rubato | `philipdallen/rubato` | `dev` |
+| Repo | Owner / repo | Branch | Publishes |
+|---|---|---|---|
+| Maith | `philipdallen/Maith` | `status` | `flow`, `trl` |
+| PleaNP | `philipdallen/PleaNP` | `main` | `flow`, `trl` |
+| Ephapse | `philipdallen/ephapse` | `main` | `flow`, `trl` |
+| Rubato | `philipdallen/rubato` | `main` | `flow`, `trl` |
+| Automation | `philipdallen/HuB` | `main` | `automation` |
 
 Adding a repo is one addition to the `repos` array. Note that
 `raw.githubusercontent.com` only serves **public** repos to an unauthenticated
 client-side fetch, so a private repo cannot be added.
 
-### Why `dev` and not the default branch
+### Branches
 
-This is a deliberate choice, not an accident of setup. Each source repo writes
-`status_log.jsonl` on `dev`, because the sweep workflow runs there — the active
-development branches are where delivery activity actually happens, and `dev` is
-the system of record per each repo's branch protocol. `status_log.jsonl` does
-**not** exist on the default branches (`main`) in any of the four repos, so
-pointing `config.json` at `main` would make every tab read amber.
+The `branch` field is the branch each source repo's sweep workflow writes to,
+which is the branch its log actually lives on — not necessarily the repo's
+default. Read the live value from `config.json`; the table above is a snapshot
+and `config.json` wins. Pointing an entry at a branch with no
+`status_log.jsonl` makes that tab read amber, which `tools/validate_config.py`
+catches in CI.
 
-The trade-off is accepted explicitly: `dev` is fresher but churnier, so a tab
-can briefly show a fetch error if a branch is mid-rewrite. If a source repo ever
-adopts `main` as its system of record, the fix is to change that repo's `branch`
-field in `config.json` and add the `status_log.jsonl` write to the same branch.
+## The Automation tab
+
+The other four tabs report on a repo's *delivery* state (`flow`, `trl`). The
+Automation tab reports on the *automation itself*, from a different block in the
+same log format, and is written by this repo rather than a source repo:
+
+```json
+{"timestamp":"...","automation":{"runs_24h":29,"runs_7d":96,"claims_total":1,
+ "stale_claims":["ephapse #39"],"stale_claims_total":1,"last_run":"..."},
+ "notes":"..."}
+```
+
+`automation_sweep.py` derives it from public data on a schedule:
+
+- **Run activity** — run-ids appear verbatim in agent comments as
+  `run=YYYYMMDD-HHMM-xxxx`. A run-id encodes its own UTC start time, so no extra
+  call is needed to date it. The same id seen in two repos counts once.
+- **Real WIP** — `claims/N.claim` files, which are the actual lock. The
+  published `flow.wip` counts the `status:claimed` *label*, which is a different
+  number and can read 0 while work is in flight.
+- **Stale claims** — a claim file whose issue is already CLOSED. Nothing
+  releases the lock on close, so these accumulate and mislead any claim-counting
+  reader.
+
+**Deliberately absent: failure rate and idle rate.** A failed run dies before it
+comments, so it leaves no public trace — only runs that reached the point of
+commenting are visible. Those two numbers need the automation API and a
+credential, which a static public page cannot hold. An absent field renders as
+an em dash, never as 0.
+
+### Why this repo writes its own log
+
+`index.html` is static: no backend, no credentials, and it can only fetch over
+the public CDN. It cannot call the GitHub API — the unauthenticated budget is 60
+requests/hour *per visitor IP*, and a single page load that fetched comments
+would spend about a third of it, breaking the page for everyone behind a shared
+address. So the numbers must be precomputed by a scheduled job, which is
+`automation_sweep.yml`. It runs with `contents: write` and writes exactly one
+file, in this repo. The page stays read-only to visitors.
 
 ## Deployment
 
@@ -81,7 +118,7 @@ field in `config.json` and add the `status_log.jsonl` write to the same branch.
 3. Open the page and confirm each tab's dot resolves from grey (loading) to a
    colour: teal = data found, amber = no `status_log.jsonl` yet (expected today),
    rose = fetch error (repo private, branch typo, network). Amber and rose are
-   bugs, not states to accept — all four tabs read **teal** today.
+   bugs, not states to accept.
 
 ## Validation
 
@@ -102,7 +139,10 @@ push and pull request.
 ## Current state
 
 All four source repos have the sweep extension (`tooling/hub_sweep.py`, or
-`tools/hub_sweep.py` in rubato) and the scheduled `hub_sweep` workflow installed
-on their `dev` and default branches. All four dashboard tabs render **teal
-(ok)** with real data. The workflow is idempotent: on a run with no change it
-appends nothing.
+`tools/hub_sweep.py` in rubato) and the scheduled `hub_sweep` workflow installed.
+The workflow is idempotent: on a run with no change it appends nothing.
+
+The Automation tab is written by this repo's own `automation_sweep.yml` and
+`automation_sweep.py`. Both sweeps run a selftest in CI
+(`automation_sweep.py --selftest`), because a check that cannot be shown to fail
+is not a check.

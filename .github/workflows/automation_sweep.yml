@@ -1,0 +1,85 @@
+name: automation_sweep
+
+# Appends one automation-health snapshot to this repo's own status_log.jsonl,
+# which the dashboard then renders as the "Automation" tab.
+#
+# Why this repo writes its own log: index.html is a static page with no backend
+# and no credentials, and it can only fetch over the public CDN. It cannot call
+# the GitHub API (the unauthenticated budget is 60 requests/hour *per visitor
+# IP*, and one page load fetching comments would spend a third of it). So the
+# numbers have to be precomputed by a scheduled job — this one.
+#
+# This repo remains read-only to visitors. The write here is this repo's own
+# file, on this repo's own branch, exactly as each source repo's hub_sweep.yml
+# writes its own. There is no cross-repo write surface.
+#
+# See automation_sweep.py for what is and is not derivable from public data.
+# Failure rate and idle rate are deliberately absent: a failed run dies before
+# it comments, so it leaves no public trace.
+
+on:
+  schedule:
+    # Every 30 minutes, offset by 7 to avoid landing on the same minute as the
+    # four source-repo sweeps (whose logs this job reads).
+    - cron: "7,37 * * * *"
+  workflow_dispatch: {}
+
+# contents: write to push the snapshot; the reads of the four source repos are
+# public data and need no extra scope.
+permissions:
+  contents: write
+  issues: read
+
+concurrency:
+  # The log is append-only; two racing sweeps would drop a snapshot.
+  group: automation_sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      # A check that cannot fail is not a check. Run the selftest first so a
+      # silent regression in the sweep is caught before it publishes "healthy".
+      - name: Prove the sweep logic can fail
+        run: python3 automation_sweep.py --selftest
+
+      - name: Append automation snapshot
+        env:
+          # Optional for public repos; present so the API calls are attributed
+          # and get the higher authenticated rate limit.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 automation_sweep.py --token-env GITHUB_TOKEN
+
+      - name: Commit and push if the log changed
+        run: |
+          set -e
+          # Stage first, then test the index. `git diff --quiet -- <path>` would
+          # ignore the untracked file on the first-ever run and silently discard
+          # it; `git diff --cached` after `git add` catches creation too.
+          git add -- status_log.jsonl
+          if git diff --cached --quiet -- status_log.jsonl; then
+            echo "no change; nothing to commit"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(hub): automation snapshot [skip ci]"
+
+          # Rebase and retry on rejection; never force-push, which would
+          # destroy a sibling's committed work.
+          for attempt in 1 2 3 4 5; do
+            if git push origin main; then
+              echo "pushed on attempt $attempt"
+              exit 0
+            fi
+            echo "push rejected; rebasing onto origin/main (attempt $attempt)"
+            git pull --rebase origin main
+          done
+          echo "push still rejected after 5 attempts" >&2
+          exit 1

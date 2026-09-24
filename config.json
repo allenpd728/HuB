@@ -3,6 +3,7 @@
     { "name": "Maith",   "owner": "philipdallen", "repo": "Maith",   "branch": "status" },
     { "name": "PleaNP",  "owner": "philipdallen", "repo": "PleaNP",  "branch": "main" },
     { "name": "Ephapse", "owner": "philipdallen", "repo": "ephapse", "branch": "main" },
-    { "name": "Rubato",  "owner": "philipdallen", "repo": "rubato",  "branch": "main" }
+    { "name": "Rubato",  "owner": "philipdallen", "repo": "rubato",  "branch": "main" },
+    { "name": "Automation", "owner": "philipdallen", "repo": "HuB", "branch": "main" }
   ]
 }

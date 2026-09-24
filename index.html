@@ -288,6 +288,14 @@ function renderCurrent() {
 
   const entries = state.entries;
   const latest = entries[entries.length - 1];
+
+  // The Automation tab publishes a different block — no flow, no trl — because
+  // it reports on the automation itself rather than on a repo's delivery state.
+  if (latest.automation) {
+    renderAutomation(entries);
+    return;
+  }
+
   const components = latest.trl || {};
   // Missing fields stay undefined. The sweep's own rule is "an absent field is
   // a true statement" — defaulting to 0 here would turn "not measured" into a
@@ -378,6 +386,76 @@ function renderLog(entries) {
   el.innerHTML = entries.length
     ? entries.map(e => `<div class="entry"><span class="ts">${esc(e.ts)}</span><span>${esc(e.note)}</span></div>`).join('')
     : '<div class="state-msg">No notes logged yet.</div>';
+}
+
+// Automation health. Everything here is derived from public data by
+// automation_sweep.py; failure rate and idle rate are deliberately absent
+// (a failed run dies before it comments, leaving no public trace).
+function renderAutomation(entries) {
+  const latest = entries[entries.length - 1].automation;
+  // Every value here comes from a fetched log, so it is untrusted: escape on
+  // the way into the template. HuB's SECURITY.md names this exact risk.
+  const show = v => (v === undefined || v === null) ? '—' : esc(v);
+  const stale = Number(latest.stale_claims_total) || 0;
+  const items = [
+    { lbl: 'Runs (24h)', val: show(latest.runs_24h), cls: '' },
+    { lbl: 'Runs (7d)', val: show(latest.runs_7d), cls: '' },
+    { lbl: 'Repos active (24h)', val: show((latest.repos_active_24h || []).length), cls: '' },
+    { lbl: 'Claims held', val: show(latest.claims_total), cls: '' },
+    { lbl: 'Stale claims', val: show(latest.stale_claims_total), cls: stale > 0 ? 'crit' : '' },
+    { lbl: 'Last run', val: latest.last_run ? esc(String(latest.last_run).slice(5, 16).replace('T', ' ')) : '—', cls: '' }
+  ];
+
+  const held = latest.claims_held || {};
+  const heldRows = Object.keys(held).length
+    ? Object.keys(held).sort().map(r =>
+        `<div class="entry"><span class="ts">${esc(r)}</span><span>${esc(held[r])} claim(s) held</span></div>`).join('')
+    : '<div class="state-msg">No claim files found in any repo.</div>';
+
+  const staleList = (latest.stale_claims || []).length
+    ? `<div class="entry"><span class="ts">stale</span><span>${esc(latest.stale_claims.join(', '))} — issue closed, lock not released</span></div>`
+    : '';
+
+  // Runs per snapshot, so a gap in the bars is visible as a gap in activity.
+  const hist = entries.slice(-30).map(e => ({
+    ts: (e.timestamp || '').slice(5, 10),
+    n: (e.automation || {}).runs_24h
+  }));
+  const W = 960, H = 180, padL = 40, padR = 20, padT = 16, padB = 28;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const maxN = Math.max(1, ...hist.map(h => h.n || 0));
+  const bw = hist.length ? innerW / hist.length : innerW;
+  const bars = hist.map((h, i) => {
+    if (h.n === undefined || h.n === null) return '';
+    const bh = (h.n / maxN) * innerH;
+    return `<rect x="${(padL + i * bw + 1).toFixed(1)}" y="${(padT + innerH - bh).toFixed(1)}"
+      width="${Math.max(1, bw - 2).toFixed(1)}" height="${bh.toFixed(1)}" fill="var(--blue)" />`;
+  }).join('');
+  const axis = [0, maxN].map((v, i) =>
+    `<text x="${padL - 6}" y="${(padT + innerH - (v / maxN) * innerH + 4).toFixed(1)}"
+      font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-dim)" text-anchor="end">${v}</text>`).join('');
+  const tick = hist.length ? `<text x="${(padL + innerW).toFixed(1)}" y="${H - 8}"
+      font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-dim)" text-anchor="end">${esc(hist[hist.length - 1].ts)}</text>` : '';
+
+  document.getElementById('body').innerHTML = `
+    <div class="grid">
+      <div class="card"><h2>Automation — latest sweep</h2><div class="stat-grid" id="statGrid"></div></div>
+      <div class="card"><h2>Claims held (real lock)</h2><div class="log">${heldRows}${staleList}</div></div>
+    </div>
+    <div class="card trend-card">
+      <h2>Runs per 24h, by sweep</h2>
+      <svg class="trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+        ${axis}${bars}${tick}
+      </svg>
+      <div class="legend"><div class="item"><span class="swatch" style="background:var(--blue)"></span>distinct run-ids seen in public comments</div></div>
+    </div>
+    <div class="card"><h2>Snapshot log</h2><div class="log" id="logList"></div></div>
+  `;
+
+  document.getElementById('statGrid').innerHTML = items.map(i => `
+    <div class="stat"><div class="num ${i.cls}">${i.val}</div><div class="lbl">${i.lbl}</div></div>`).join('');
+  renderLog(entries.slice().reverse().filter(e => e.notes).slice(0, 12)
+    .map(e => ({ ts: e.timestamp, note: e.notes })));
 }
 
 function renderTrend(sweeps) {
